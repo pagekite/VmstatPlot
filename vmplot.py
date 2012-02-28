@@ -122,15 +122,16 @@ os.close(vmstat[0])
 
 options.label = time.strftime("%F %T", time.localtime())
 if options.email:
-    options.label = options.email + ' ' + options.label
+  options.label = options.email + ' ' + options.label
 
 plot = []
 if options.slc4:
-    plot.append('set terminal png small;')
-    plot.append('set size 1.6,1.0;')
+  plot.append('set terminal png small;')
+  plot.append('set size 1.6,1.0;')
 else:
-    plot.append('set terminal png small size 1024,480 ;')
-    plot.append('set label "%s" front offset -11,-2.5 ;' % (options.label))
+  plot.append('set terminal png small size 1024,480 ;')
+  plot.append('set label "%s" front offset -11,-2.5 ;' % (options.label))
+
 plot.append('set output "%s.png";' % options.title)
 plot.append('set title "%s";' % options.title)
 plot.append('set key below;')
@@ -143,21 +144,40 @@ plot.append('set ylabel "Memory/CPU utilization (%)";')
 plot.append('set ytics 20;')
 plot.append('set grid linetype 0;')
 plot.append('plot ')
-plot.append('"%s" using 0:19:xtic(19) axis x1y2 title "t",' % vmstat[1])
-plot.append('"%s" using 0:10 title "io:in" axis x1y2 smooth bezier lt 5 lw 2,' % vmstat[1])
-plot.append('"%s" using 0:9 title "io:out" axis x1y2 smooth bezier lt 1 lw 2,' % vmstat[1])
-plot.append('"%s" using 0:13 title "cpu:user" smooth bezier lt 3 lw 1,' % vmstat[1])
-plot.append('"%s" using 0:14 title "cpu:sys" smooth bezier lt 4 lw 1,' % vmstat[1])
-plot.append('"%s" using 0:15 title "cpu:idle" smooth bezier lt 2 lw 2,' % vmstat[1])
-plot.append('"%s" using 0:($4/%d) title "mem:free" smooth bezier lt 6 lw 2,' % (vmstat[1], 10*options.ram))
-plot.append('"%s" using 0:($5/%d) title "mem:buff" smooth bezier lt 7 lw 1,' % (vmstat[1], 10*options.ram))
-plot.append('"%s" using 0:($6/%d) title "mem:cache" smooth bezier lt 8 lw 1,' % (vmstat[1], 10*options.ram))
-plot.append('"%s" using 0:($3/%d) title "mem:swapped" smooth bezier lt 9 lw 2' % (vmstat[1], 10*options.ram))
+plots = ['"%s" using 0:19:xtic(19) axis x1y2 title "t"' % vmstat[1]]
+for col, args, div in (
+  ('bi',      '"io:in"       axis x1y2 smooth bezier lt 5 lw 2', 1),
+  ('bo',      '"io:out"      axis x1y2 smooth bezier lt 1 lw 2', 1),
+  ('us',      '"cpu:user"    smooth bezier lt 3 lw 1',           1),
+  ('sy',      '"cpu:sys"     smooth bezier lt 4 lw 1',           1),
+  ('id',      '"cpu:idle"    smooth bezier lt 2 lw 2',           1),
+  ('free',    '"mem:free"    smooth bezier lt 6 lw 2',      10 * options.ram),
+  ('buff',    '"mem:buff"    smooth bezier lt 7 lw 1',      10 * options.ram),
+  ('cache',   '"mem:cache"   smooth bezier lt 8 lw 1',      10 * options.ram),
+  ('swapped', '"mem:swapped" smooth bezier lt 9 lw 2',      10 * options.ram),
+  ('eth0_i',  '"eth0:in"     axis x1y2 smooth bezier lt 5 lw 1', 1024),
+  ('eth0_o',  '"eth0:out"    axis x1y2 smooth bezier lt 1 lw 1', 1024),
+  ('eth1_i',  '"eth1:in"     axis x1y2 smooth bezier lt 5 lw 1', 1024),
+  ('eth1_o',  '"eth1:out"    axis x1y2 smooth bezier lt 1 lw 1', 1024),
+  ('wlan0_i', '"wlan0:in"    axis x1y2 smooth bezier lt 5 lw 1', 1024),
+  ('wlan0_o', '"wlan0:out"   axis x1y2 smooth bezier lt 1 lw 1', 1024),
+  ('wlan1_i', '"wlan1:in"    axis x1y2 smooth bezier lt 5 lw 1', 1024),
+  ('wlan1_o', '"wlan1:out"   axis x1y2 smooth bezier lt 1 lw 1', 1024),
+  ('syslog',  '"syslog"      axis x1y2 smooth bezier lt 3 lw 1', 1),
+  ('http_req','"http_req"    axis x1y2 smooth bezier lt 3 lw 1', 1),
+  ('http_err','"http_err"    axis x1y2 smooth bezier lt 1 lw 3', 100),
+):
+  if col in index:
+    plots.append('"%s" using 0:($%d/%d) title %s' % (vmstat[1], 1+index[col],
+                                                     div, args))
+
+plot.append(', '.join(plots)+';')
+
 if options.postscript:
-    plot.append('set terminal postscript color landscape small;')
-    plot.append('set size 1.0,1.0;')
-    plot.append('set output "%s.ps";' % options.title)
-    plot.append('replot;')
+  plot.append('set terminal postscript color landscape small;')
+  plot.append('set size 1.0,1.0;')
+  plot.append('set output "%s.ps";' % options.title)
+  plot.append('replot;')
 
 gnuplot = tempfile.mkstemp('.tmp', 'vmplot-gnuplot-')
 if options.retain:
