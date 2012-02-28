@@ -56,6 +56,7 @@ parser.add_option("-4", "--slc4", action="store_true", default=False, help="SLC4
 
 print "option: title =", options.title
 print "option: email =", options.email
+print "args: %s" % args
 
 try:
     options.size = int(options.size)
@@ -84,14 +85,14 @@ vmstat = tempfile.mkstemp('.tmp', 'vmplot-vmstat-')
 if options.retain:
     print "sanitized vmstat file:", vmstat[1]
 
-for line in fileinput.input(args):
+for line in fileinput.input(args[1:]):
     if 'procs' in line:
         continue
     cols = line.split()
     if not index and 'free' in cols:
         build_column_index(cols)
         continue
-    if cols[1].isdigit():
+    if index and cols[1].isdigit():
         skip = False
         for i in iocols:
             if cols[index[i]].isdigit():
@@ -112,16 +113,12 @@ for line in fileinput.input(args):
                 cols[index[i]])
                 skip = True
         if not skip:
-            if len(cols) > 18 and (lc % int(options.size/5)) != 0:
+            if len(cols) > 18 and (lc % int(options.size/5)) != 5:
               line = line.replace(cols[18], '').replace(cols[17], '')
             os.write(vmstat[0], line)
             lc += 1
 
 os.close(vmstat[0])
-
-for i in iocols:
-    avgs[i] = sums[i] / pcnts[i]
-    print "%s: SUM=%d AVG=%d CNT=%d" % (i, sums[i], avgs[i], pcnts[i])
 
 options.label = time.strftime("%F %T", time.localtime())
 if options.email:
@@ -146,9 +143,9 @@ plot.append('set ylabel "Memory/CPU utilization (%)";')
 plot.append('set ytics 20;')
 plot.append('set grid linetype 0;')
 plot.append('plot ')
-plot.append('"%s" using 19:xtic(19) axis x1y2 title "t",' % vmstat[1])
-plot.append('"%s" using 0:10 title "io:in" axis x1y2 smooth bezier lt 1 lw 2,' % vmstat[1])
-plot.append('"%s" using 0:9 title "io:out" axis x1y2 smooth bezier lt 5 lw 2,' % vmstat[1])
+plot.append('"%s" using 0:19:xtic(19) axis x1y2 title "t",' % vmstat[1])
+plot.append('"%s" using 0:10 title "io:in" axis x1y2 smooth bezier lt 5 lw 2,' % vmstat[1])
+plot.append('"%s" using 0:9 title "io:out" axis x1y2 smooth bezier lt 1 lw 2,' % vmstat[1])
 plot.append('"%s" using 0:13 title "cpu:user" smooth bezier lt 3 lw 1,' % vmstat[1])
 plot.append('"%s" using 0:14 title "cpu:sys" smooth bezier lt 4 lw 1,' % vmstat[1])
 plot.append('"%s" using 0:15 title "cpu:idle" smooth bezier lt 2 lw 2,' % vmstat[1])
