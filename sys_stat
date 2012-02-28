@@ -4,83 +4,121 @@
 # log files and network interface counters.
 #
 import os
+import signal
 import subprocess
 import sys
 import time
 
 
-def cl(fd):
-  fd.seek(fd.tell())
-  return str(len(fd.readlines()))
+def cl(li):
+  pos = li[0].tell()
+  li[0].seek(pos)
+  lines = 0
+  try:
+    lines = len(li[0].readlines())
+    if os.stat(li[2]).st_size < pos:
+      fd[0] = open(li[2], 'r')
+      lines += len(li[0].readlines())
+  except (OSError, IOError):
+    pass
+  return str(lines)
 
 def pad(title, data=None):
   return (' %%%ds' % len(title)) % ((data is None) and title or data)
 
+def yank_arg(name, args):
+  idx = args.index(name)
+  arg = args[idx+1]
+  args[idx:idx+2] = []
+  return arg
 
 class Vmstat(object):
   def __init__(self, args):
 
+    self.output = sys.stdout
+    self.outfile = None
+    while '-O' in args:
+      self.outfile = yank_arg('-O', args)
+      self.Reopen()
+      signal.signal(signal.SIGHUP, self.Reopen)
+
     self.logfiles = []
     while '-F' in args:
-      idx = args.index('-F')
-      lid, lname = args[idx+1].split(':')
-      self.logfiles.append((lid, open(lname, 'r')))
-      args[idx:idx+2] = []
+      lid, lname = yank_arg('-F', args).split(':')
+      linfo = [open(lname, 'r'), lid, lname]
+      self.logfiles.append(linfo)
+      cl(linfo)
 
     self.interfaces = []
     self.traffic = {}
     while '-I' in args:
-      idx = args.index('-I')
-      iface = args[idx+1]
+      iface = yank_arg('-I', args)
       self.interfaces.append(iface)
-      args[idx:idx+2] = []
 
     self.vmstat_cmd = ['vmstat']
     self.vmstat_cmd.extend(args)
-    self.vmstat = subprocess.Popen(self.vmstat_cmd, bufsize=1, close_fds=True,
-                                   stdout=subprocess.PIPE)
+    if len(self.vmstat_cmd): self.vmstat_cmd.append("10")
+
+  def Reopen(self, ig1=None, ig2=None):
+    if self.outfile:
+      print 'Reopening...'
+      of = open(self.outfile, 'w')
+      self.output = os.fdopen(of.fileno(), 'w', 0)
 
   def Traffic(self, iface):
-    for line in open('/proc/net/dev', 'r'):
-      if iface in line:
-        data = line[line.index(':')+1:].split()
-        rcvd, xmit = int(data[0]), int(data[8])
-        if iface in self.traffic:
-          orcv, oxmt = self.traffic.get(iface, (0, 0))
-          self.traffic[iface] = (rcvd, xmit)
-          return (rcvd-orcv, xmit-oxmt)
-        else:
-          self.traffic[iface] = (rcvd, xmit)
-          return (0, 0)
+    try:
+      for line in open('/proc/net/dev', 'r'):
+        if iface in line:
+          data = line[line.index(':')+1:].split()
+          rcvd, xmit = int(data[0]), int(data[8])
+          if iface in self.traffic:
+            orcv, oxmt = self.traffic.get(iface, (0, 0))
+            self.traffic[iface] = (rcvd, xmit)
+            return (rcvd-orcv, xmit-oxmt)
+          else:
+            self.traffic[iface] = (rcvd, xmit)
+            return (0, 0)
+    except (OSError, IOError):
+      pass
     return (0, 0)
 
   def Run(self):
     line = 'first'
-    while line:
-      line = self.vmstat.stdout.readline().strip()
-      if not line: break
-      if '----' in line: continue
+    while 1:
+      self.vmstat = subprocess.Popen(self.vmstat_cmd, bufsize=1, close_fds=True,
+                                     stdout=subprocess.PIPE)
+      while line:
+        try:
+          line = self.vmstat.stdout.readline().strip()
+        except (OSError, IOError):
+          line = 'interrupted'
+          continue
 
-      line += pad(time.asctime())
-      if 'swpd' in line:
-        if self.logfiles:
-          line += ' '.join([pad(l[0]) for l in self.logfiles])
-        for iface in self.interfaces:
-          line += pad('%s_i' % iface)
-          line += pad('%s_o' % iface)
-      else:
-        if self.logfiles:
-          line += ' '.join([pad(l[0], cl(l[1])) for l in self.logfiles])
-        for iface in self.interfaces:
-          r, w = self.Traffic(iface)
-          line += pad('%s_i' % iface, r)
-          line += pad('%s_o' % iface, w)
+        if not line:
+          break
+        if '----' in line:
+          continue
 
-      sys.stdout.write('%s\n' % line)
+        line += pad(time.asctime())
+        if 'swpd' in line:
+          if self.logfiles:
+            line += ' '.join([pad(l[1]) for l in self.logfiles])
+          for iface in self.interfaces:
+            line += pad('%s_i' % iface)
+            line += pad('%s_o' % iface)
+        else:
+          if self.logfiles:
+            line += ' '.join([pad(l[1], cl(l)) for l in self.logfiles])
+          for iface in self.interfaces:
+            r, w = self.Traffic(iface)
+            line += pad('%s_i' % iface, r)
+            line += pad('%s_o' % iface, w)
 
+        self.output.write('%s\n' % line)
 
+      self.vmstat.wait()
 
 if __name__ == '__main__':
   sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-  Vmstat(sys.argv[1:]).Run()
-
+  vms = Vmstat(sys.argv[1:]).Run()
+  print 'Exiting ...'
