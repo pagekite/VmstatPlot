@@ -3,6 +3,7 @@
 # This simple tool will augment the output from vmstat with line counts from
 # log files and network interface counters.
 #
+import os
 import subprocess
 import sys
 import time
@@ -40,8 +41,7 @@ class Vmstat(object):
                                    stdout=subprocess.PIPE)
 
   def Traffic(self, iface):
-    ifs = open('/proc/net/dev', 'r')
-    for line in ifs:
+    for line in open('/proc/net/dev', 'r'):
       if iface in line:
         data = line[line.index(':')+1:].split()
         rcvd, xmit = int(data[0]), int(data[8])
@@ -66,19 +66,21 @@ class Vmstat(object):
         if self.logfiles:
           line += ' '.join([pad(l[0]) for l in self.logfiles])
         for iface in self.interfaces:
-          line += pad('%s:r' % iface)
-          line += pad('%s:w' % iface)
+          line += pad('%s_i' % iface)
+          line += pad('%s_o' % iface)
       else:
         if self.logfiles:
           line += ' '.join([pad(l[0], cl(l[1])) for l in self.logfiles])
         for iface in self.interfaces:
           r, w = self.Traffic(iface)
-          line += pad('%s:r' % iface, r)
-          line += pad('%s:w' % iface, w)
+          line += pad('%s_i' % iface, r)
+          line += pad('%s_o' % iface, w)
 
-      print line
+      sys.stdout.write('%s\n' % line)
+
 
 
 if __name__ == '__main__':
+  sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
   Vmstat(sys.argv[1:]).Run()
 
