@@ -46,6 +46,7 @@ def build_column_index(x):
 parser = optparse.OptionParser()
 parser.add_option("-t", "--title", default=os.path.basename(os.getcwd()), help="graph title")
 parser.add_option("-e", "--email", default=None, help="graph author email address")
+parser.add_option("-c", "--timecol", default=0, help="column with current time")
 parser.add_option("-k", "--kilobytes", default=0, help="throughput axis scale")
 parser.add_option("-m", "--ram", default=4096, help="megabytes of RAM available")
 parser.add_option("-s", "--size", default=7200, help="number of data points")
@@ -62,6 +63,13 @@ try:
     options.size = int(options.size)
 except:
     print "E: Invalid number. (%s)" % options.size
+    sys.exit(1)
+print "option: size =", options.size
+
+try:
+    options.timecol = int(options.timecol)
+except:
+    print "E: Invalid number. (%s)" % options.timecol
     sys.exit(1)
 print "option: size =", options.size
 
@@ -113,8 +121,8 @@ for line in fileinput.input(args[1:]):
                 cols[index[i]])
                 skip = True
         if not skip:
-            if len(cols) > 18 and (lc % int(options.size/5)) != 5:
-              line = line.replace(cols[18], '').replace(cols[17], '')
+            if len(cols) > options.timecol-1 and (lc % int(options.size/5)) != 5:
+              line = line.replace(cols[options.timecol-1], '')
             os.write(vmstat[0], line)
             lc += 1
 
@@ -144,11 +152,12 @@ plot.append('set ylabel "Memory/CPU utilization (%)";')
 plot.append('set ytics 20;')
 plot.append('set grid linetype 0;')
 
-tc = 19
-for k in index:
-  if ':' in k: tc = 1+index[k]
+if options.timecol > 0:
+  plots = [('"%s" using 0:%d:xtic(%d) axis x1y2 title "t"'
+            ) % (vmstat[1], options.timecol, options.timecol)]
+else:
+  plots = []
 
-plots = ['"%s" using 0:%d:xtic(%d) axis x1y2 title "t"' % (vmstat[1], tc, tc)]
 for col, args, div in (
   ('bi',      '"io:in"       axis x1y2 smooth bezier lt 5 lw 2', 1),
   ('bo',      '"io:out"      axis x1y2 smooth bezier lt 1 lw 2', 1),
