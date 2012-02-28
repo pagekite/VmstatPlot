@@ -122,7 +122,7 @@ for line in fileinput.input(args[1:]):
                 skip = True
         if not skip:
             if len(cols) > options.timecol-1 and (lc % int(options.size/5)) != 5:
-              line = line.replace(cols[options.timecol-1], '')
+              line = line.replace(cols[options.timecol-1], "''")
             os.write(vmstat[0], line)
             lc += 1
 
@@ -153,7 +153,7 @@ plot.append('set ytics 20;')
 plot.append('set grid linetype 0;')
 
 if options.timecol > 0:
-  plots = [('"%s" using 0:%d:xtic(%d) axis x1y2 title "t"'
+  plots = [('"%s" using 0:%d:xtic(%d) axis x1y2 title "t" lt 7 lw 0'
             ) % (vmstat[1], options.timecol, options.timecol)]
 else:
   plots = []
@@ -176,8 +176,8 @@ for col, args, div in (
   ('wlan0_o', '"wlan0:out"   axis x1y2 smooth bezier lt 1 lw 1', 10240),
   ('wlan1_i', '"wlan1:in"    axis x1y2 smooth bezier lt 5 lw 1', 10240),
   ('wlan1_o', '"wlan1:out"   axis x1y2 smooth bezier lt 1 lw 1', 10240),
-  ('syslog',  '"syslog"      axis x1y2 lt 2 lw 2', 1),
-  ('http_req','"http_req"    axis x1y2 lt 3 lw 2', 1),
+  ('syslog',  '"syslog"      axis x1y2 lt 2 lw 1', 1),
+  ('http_req','"http_req"    axis x1y2 lt 3 lw 1', 1),
   ('http_err','"http_err"    axis x1y2 lt 1 lw 2', 0.1),
 ):
   if col in index:
