@@ -143,8 +143,12 @@ plot.append('set yrange [0:103];')
 plot.append('set ylabel "Memory/CPU utilization (%)";')
 plot.append('set ytics 20;')
 plot.append('set grid linetype 0;')
-plot.append('plot ')
-plots = ['"%s" using 0:19:xtic(19) axis x1y2 title "t"' % vmstat[1]]
+
+tc = 19
+for k in index:
+  if ':' in k: tc = 1+index[k]
+
+plots = ['"%s" using 0:%d:xtic(%d) axis x1y2 title "t"' % (vmstat[1], tc, tc)]
 for col, args, div in (
   ('bi',      '"io:in"       axis x1y2 smooth bezier lt 5 lw 2', 1),
   ('bo',      '"io:out"      axis x1y2 smooth bezier lt 1 lw 2', 1),
@@ -155,23 +159,22 @@ for col, args, div in (
   ('buff',    '"mem:buff"    smooth bezier lt 7 lw 1',      10 * options.ram),
   ('cache',   '"mem:cache"   smooth bezier lt 8 lw 1',      10 * options.ram),
   ('swapped', '"mem:swapped" smooth bezier lt 9 lw 2',      10 * options.ram),
-  ('eth0_i',  '"eth0:in"     axis x1y2 smooth bezier lt 5 lw 1', 1024),
-  ('eth0_o',  '"eth0:out"    axis x1y2 smooth bezier lt 1 lw 1', 1024),
-  ('eth1_i',  '"eth1:in"     axis x1y2 smooth bezier lt 5 lw 1', 1024),
-  ('eth1_o',  '"eth1:out"    axis x1y2 smooth bezier lt 1 lw 1', 1024),
-  ('wlan0_i', '"wlan0:in"    axis x1y2 smooth bezier lt 5 lw 1', 1024),
-  ('wlan0_o', '"wlan0:out"   axis x1y2 smooth bezier lt 1 lw 1', 1024),
-  ('wlan1_i', '"wlan1:in"    axis x1y2 smooth bezier lt 5 lw 1', 1024),
-  ('wlan1_o', '"wlan1:out"   axis x1y2 smooth bezier lt 1 lw 1', 1024),
-  ('syslog',  '"syslog"      axis x1y2 smooth bezier lt 3 lw 1', 1),
-  ('http_req','"http_req"    axis x1y2 smooth bezier lt 3 lw 1', 1),
-  ('http_err','"http_err"    axis x1y2 smooth bezier lt 1 lw 3', 100),
+  ('eth0_i',  '"eth0:in"     axis x1y2 smooth bezier lt 5 lw 1', 10240),
+  ('eth0_o',  '"eth0:out"    axis x1y2 smooth bezier lt 1 lw 1', 10240),
+  ('eth1_i',  '"eth1:in"     axis x1y2 smooth bezier lt 5 lw 1', 10240),
+  ('eth1_o',  '"eth1:out"    axis x1y2 smooth bezier lt 1 lw 1', 10240),
+  ('wlan0_i', '"wlan0:in"    axis x1y2 smooth bezier lt 5 lw 1', 10240),
+  ('wlan0_o', '"wlan0:out"   axis x1y2 smooth bezier lt 1 lw 1', 10240),
+  ('wlan1_i', '"wlan1:in"    axis x1y2 smooth bezier lt 5 lw 1', 10240),
+  ('wlan1_o', '"wlan1:out"   axis x1y2 smooth bezier lt 1 lw 1', 10240),
+  ('syslog',  '"syslog"      axis x1y2 lt 2 lw 2', 1),
+  ('http_req','"http_req"    axis x1y2 lt 3 lw 2', 1),
+  ('http_err','"http_err"    axis x1y2 lt 1 lw 2', 0.1),
 ):
   if col in index:
-    plots.append('"%s" using 0:($%d/%d) title %s' % (vmstat[1], 1+index[col],
+    plots.append('"%s" using 0:($%d/%s) title %s' % (vmstat[1], 1+index[col],
                                                      div, args))
-
-plot.append(', '.join(plots)+';')
+plot.append('plot %s;' % ', '.join(plots))
 
 if options.postscript:
   plot.append('set terminal postscript color landscape small;')
