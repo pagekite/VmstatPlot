@@ -11,5 +11,5 @@ done
 
 ./graph.sh logs
 
-mv logs logs-$(date +%s)
+mv logs logs-$(date +%Y-%m-%d.%s)
 
