@@ -1,8 +1,9 @@
 #!/usr/bin/python
-# vmplot.py: v385 2008/05/25 KELEMEN Peter <Peter.Kelemen@gmail.com>
+# vmplot.py
 
 #  Generate gnuplot(1) graphs from vmstat(1) output.
 #  Copyright (C) 2008  KELEMEN Peter
+#  Copyright (C) 2012  Bjarni R. Einarsson
 #  
 #  This program is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -126,18 +127,6 @@ options.label = time.strftime("%F %T", time.localtime())
 if options.email:
     options.label = options.email + ' ' + options.label
 
-# determine workload type
-options.workload = ''
-options.extraplot = ''
-options.extratitle = ''
-map = { 'R': avgs['bi'], 'W': avgs['bo'] }
-for i in map.keys():
-    if map[i] > 1000:
-        options.workload += i
-        options.extratitle += ',AVG(%s)=%d KiB/s' % (i, map[i])
-        options.extraplot += ', %d lt -1 lw 1' % map[i]
-options.extraplot += ';'
-
 plot = []
 if options.slc4:
     plot.append('set terminal png small;')
@@ -145,8 +134,8 @@ if options.slc4:
 else:
     plot.append('set terminal png small size 1024,480 ;')
     plot.append('set label "%s" front offset -11,-2.5 ;' % (options.label))
-plot.append('set output "%s-%s.png";' % (options.title, options.workload))
-plot.append('set title "%s-%s%s";' % (options.title, options.workload, options.extratitle))
+plot.append('set output "%s.png";' % options.title)
+plot.append('set title "%s";' % options.title)
 plot.append('set key below;')
 plot.append('set xlabel "Time";')
 if options.kilobytes: plot.append('set yrange [0:%d];' % options.kilobytes)
@@ -167,11 +156,10 @@ plot.append('"%s" using 0:($4/%d) title "mem:free" smooth bezier lt 6 lw 2,' % (
 plot.append('"%s" using 0:($5/%d) title "mem:buff" smooth bezier lt 7 lw 1,' % (vmstat[1], 10*options.ram))
 plot.append('"%s" using 0:($6/%d) title "mem:cache" smooth bezier lt 8 lw 1,' % (vmstat[1], 10*options.ram))
 plot.append('"%s" using 0:($3/%d) title "mem:swapped" smooth bezier lt 9 lw 2' % (vmstat[1], 10*options.ram))
-plot.append(options.extraplot)
 if options.postscript:
     plot.append('set terminal postscript color landscape small;')
     plot.append('set size 1.0,1.0;')
-    plot.append('set output "%s-%s.ps";' % (options.title, options.workload))
+    plot.append('set output "%s.ps";' % options.title)
     plot.append('replot;')
 
 gnuplot = tempfile.mkstemp('.tmp', 'vmplot-gnuplot-')
